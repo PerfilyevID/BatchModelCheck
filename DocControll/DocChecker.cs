@@ -42,10 +42,8 @@ namespace BatchModelCheck.DocControll
                 {
                     try
                     {
-                        if (SetForegroundWindow(process.Handle))
-                        {
-                            SendKeys.SendWait("{ENTER}");
-                        }
+                        SetForegroundWindow(process.Handle);
+                        SendKeys.SendWait("{ENTER}");
                         KeyEnterLoop(process.Handle);
                     }
                     catch (Exception)
@@ -66,8 +64,8 @@ namespace BatchModelCheck.DocControll
                 {
                     try
                     {
-                        if(SetForegroundWindow(childHandle))
-                        { SendKeys.SendWait("{ENTER}"); }
+                        SetForegroundWindow(childHandle);
+                        SendKeys.SendWait("{ENTER}");
                         KeyEnterLoop(childHandle);
                     }
                     catch (Exception)
@@ -124,6 +122,7 @@ namespace BatchModelCheck.DocControll
                             rowData.Errors.Add(new DbError("Дубликаты имен", CheckTools.CheckNames(docu)));
                             rowData.Errors.Add(new DbError("Ошибки подгруженных связей", CheckTools.CheckSharedLocations(docu) + CheckTools.CheckLinkWorkSets(docu)));
                             rowData.Errors.Add(new DbError("Предупреждения Revit", CheckTools.CheckErrors(docu)));
+                            rowData.Errors.Add(new DbError("Размер файла", CheckTools.CheckFileSize(doc.Path)));
                             DbController.WriteValue(doc.Id.ToString(), rowData.ToString());
                             Print(string.Format("[{0}] Закрытие документа...", DateTime.Now.ToString("T")), KPLN_Loader.Preferences.MessageType.Header);
                         }

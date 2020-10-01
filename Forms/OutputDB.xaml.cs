@@ -20,12 +20,18 @@ namespace BatchModelCheck.Forms
             var values = new ChartValues<DateTimePoint>();
             foreach (DbRowData row in data)
             {
+                bool found = false;
                 foreach (DbError err in row.Errors)
                 {
                     if (err.Name == name)
                     {
+                        found = true;
                         values.Add(new DateTimePoint(row.DateTime, err.Count));
                     }
+                }
+                if (!found)
+                {
+                    values.Add(new DateTimePoint(row.DateTime, double.NaN));
                 }
             }
             if (values.Count == 1)

@@ -21,7 +21,6 @@ namespace BatchModelCheck.SystemTools
         {
             this._MainHandle = handle;
         }
-
         public List<IntPtr> GetAllChildHandles()
         {
             List<IntPtr> childHandles = new List<IntPtr>();
@@ -45,15 +44,12 @@ namespace BatchModelCheck.SystemTools
         private bool EnumWindow(IntPtr hWnd, IntPtr lParam)
         {
             GCHandle gcChildhandlesList = GCHandle.FromIntPtr(lParam);
-
             if (gcChildhandlesList == null || gcChildhandlesList.Target == null)
             {
                 return false;
             }
-
             List<IntPtr> childHandles = gcChildhandlesList.Target as List<IntPtr>;
             childHandles.Add(hWnd);
-
             return true;
         }
     }

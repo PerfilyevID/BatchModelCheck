@@ -5,11 +5,17 @@ using System.Linq;
 using static KPLN_Loader.Output.Output;
 using static BatchModelCheck.Common.Collections;
 using revit.Autodesk.Revit.DB;
+using System.IO;
 
 namespace BatchModelCheck.Tools
 {
     public static class CheckTools
     {
+        public static int CheckFileSize(string path)
+        {
+            FileInfo fileInfo = new FileInfo(path);
+            return (int)Math.Round((double)fileInfo.Length / 1000000);
+        }
         public static int CheckErrors(Document doc)
         {
             return doc.GetWarnings().Count();
@@ -388,103 +394,105 @@ namespace BatchModelCheck.Tools
             int ammount = 0;
             try
             {
-                foreach (FamilySymbol symbol in new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).ToElements())
+                HashSet<int> _fam_ids = new HashSet<int>();
+                HashSet<string> _fam_names = new HashSet<string>();
+                List<Family> _fams = new List<Family>();
+                foreach (Family family in new FilteredElementCollector(doc).OfClass(typeof(Family)).ToElements())
+                {
+                    if (!_fam_ids.Contains(family.Id.IntegerValue))
+                    {
+                        _fam_ids.Add(family.Id.IntegerValue);
+                        _fams.Add(family);
+                        _fam_names.Add(family.Name);
+                    }
+                    else
+                    {
+                        continue;
+                    }
+                }
+                foreach (Family family in _fams)
                 {
                     try
                     {
-                        string familyName = symbol.FamilyName;
-                        string symbolName = symbol.Name;
-                        if (IsInteger(symbolName))
+                        HashSet<string> _sym_names = new HashSet<string>();
+                        List<FamilySymbol> _syms = new List<FamilySymbol>();
+                        string _family_name = family.Name;
+                        if (IsInteger(_family_name[_family_name.Length - 1]) && !IsInteger(_family_name[_family_name.Length - 2]))
                         {
-                            ammount++;
+                            foreach (int i in new int[] { 1, 2 })
+                            {
+                                if (_fam_names.Contains(GetShortenedName(_family_name, i)))
+                                {
+                                    ammount++;
+                                }
+                                else
+                                {
+                                    continue;
+                                }
+                            }
                         }
-                        if (IsBrutalCopy(symbolName, symbol.Family))
+                        foreach (ElementId id in family.GetFamilySymbolIds())
                         {
-                            ammount++;
+                            FamilySymbol symbol = family.Document.GetElement(id) as FamilySymbol;
+                            _syms.Add(symbol);
+                            _sym_names.Add(symbol.Name);
+                        }
+                        HashSet<string> _check_names = new HashSet<string>();
+                        foreach (FamilySymbol symbol in _syms)
+                        {
+                            string _symbol_name = symbol.Name;
+                            if (IsInteger(_symbol_name[_symbol_name.Length - 1]) && !IsInteger(_symbol_name[_symbol_name.Length - 2]))
+                            {
+                                foreach (int i in new int[] { 1, 2 })
+                                {
+                                    _check_names.Add(GetShortenedName(_symbol_name, i));
+                                    if (_sym_names.Contains(GetShortenedName(_symbol_name, i)))
+                                    {
+                                        ammount++;
+                                    }
+                                    else
+                                    {
+                                        continue;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                continue;
+                            }
                         }
                     }
                     catch (Exception)
                     { }
                 }
-                foreach (Family symbol in new FilteredElementCollector(doc).OfClass(typeof(Family)).ToElements())
-                {
-                    try
-                    {
-                        string familyName = symbol.Name;
-                        if (IsInteger(familyName))
-                        {
-                            ammount++;
-                        }
-                        if (IsBrutalCopy(familyName))
-                        {
-                            ammount++;
-                        }
-                        if (IsCopy(familyName))
-                        {
-                            ammount++;
-                        }
-                    }
-                    catch (Exception) { }
-                }
             }
-            catch (Exception e)
-            { PrintError(e); }
+            catch (Exception)
+            { }
             return ammount;
         }
         #region add
-        private static bool IsInteger(string s)
+        private static string GetShortenedName(string value, int ammount = 1)
         {
-            try
+            string result = string.Empty;
+            for (int i = 0; i < value.Length - ammount; i++)
             {
-                int n = int.Parse(s, System.Globalization.NumberStyles.Integer);
+                try
+                {
+                    result += value[i];
+                }
+                catch (Exception)
+                { }
+            }
+            return result;
+        }
+        private static bool IsInteger(char c)
+        {
+            if ("0123456789".Contains(c))
+            {
                 return true;
             }
-            catch (Exception)
-            {
-                return false;
-            }
+            return false;
 
-        }
-        private static bool IsCopy(string s)
-        {
-            string[] parts = s.Split(new string[] { " " }, StringSplitOptions.RemoveEmptyEntries);
-            if (IsInteger(parts.Last()))
-            {
-                return true;
-            }
-            return false;
-        }
-        private static bool IsBrutalCopy(string s, Family family)
-        {
-            if (s.Length > 1)
-            {
-                string reversed = s;
-                reversed.Reverse();
-                if (IsInteger(reversed[0].ToString()) && !IsInteger(reversed[1].ToString()))
-                {
-                    foreach (string t in GetTypes(family))
-                    {
-                        if (t.Remove(t.Length - 1) == s.Remove(t.Length - 1))
-                        {
-                            return true;
-                        }
-                    }
-                }
-            }
-            return false;
-        }
-        private static bool IsBrutalCopy(string s)
-        {
-            if (s.Length > 1)
-            {
-                string reversed = s;
-                reversed.Reverse();
-                if (IsInteger(reversed[0].ToString()) && !IsInteger(reversed[1].ToString()))
-                {
-                    return true;
-                }
-            }
-            return false;
         }
         private static List<string> GetTypes(Family family)
         {

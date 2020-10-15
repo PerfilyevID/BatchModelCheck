@@ -29,9 +29,10 @@ namespace BatchModelCheck.Tools
                 switch (LevelChecker.CheckLevels(doc))
                 {
                     case CheckResult.NoSections:
-                        return ammount;
+                        code = null;
+                        break;
                     case CheckResult.Error:
-                        return new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Levels).WhereElementIsNotElementType().Count();
+                        return new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Levels).WhereElementIsNotElementType().ToElements().Count;
                     case CheckResult.Corpus:
                         code = "К";
                         break;
@@ -39,12 +40,12 @@ namespace BatchModelCheck.Tools
                         code = "С";
                         break;
                 }
-
                 LevelChecker.Levels.Clear();
                 foreach (Element element in new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Levels).WhereElementIsNotElementType().ToElements())
                 {
                     LevelChecker.AddLevel(element as Level, doc, code);
                 }
+                List<List<object>> aCats = new List<List<object>>();
                 foreach (BuiltInCategory cat in new BuiltInCategory[] { BuiltInCategory.OST_Windows,
                                                                         BuiltInCategory.OST_Doors,
                                                                         BuiltInCategory.OST_MechanicalEquipment,
@@ -82,7 +83,7 @@ namespace BatchModelCheck.Tools
                             {
                                 BoundingBoxXYZ box = element.get_BoundingBox(null);
                                 LevelChecker checker = LevelChecker.GetLevelById(level.Id);
-                                if (element.GetType() != typeof(Ceiling) && element.GetType() != typeof(Floor))
+                                if (element.GetType() != typeof(Floor) && element.GetType() != typeof(Wall))
                                 {
                                     LevelCheckResult result = checker.GetLevelIntersection(box);
                                     if (result == LevelCheckResult.FullyInside)
@@ -91,25 +92,26 @@ namespace BatchModelCheck.Tools
                                     }
                                     else
                                     {
-                                        if (result != LevelCheckResult.TheLeastInside && result != LevelCheckResult.MostlyInside)
+                                        if (result != LevelCheckResult.MostlyInside)
                                         {
-                                            bool skip = false;
-                                            foreach (LevelChecker c in LevelChecker.GetOtherLevelById(level.Id))
-                                            {
-                                                LevelCheckResult rslt = c.GetLevelIntersection(box);
-                                                if (rslt == LevelCheckResult.FullyInside)
-                                                {
-                                                    ammount++;
-                                                    skip = true;
-                                                    break;
-                                                }
-                                            }
-                                            if (!skip)
+                                            if (result == LevelCheckResult.TheLeastInside)
                                             {
                                                 foreach (LevelChecker c in LevelChecker.GetOtherLevelById(level.Id))
                                                 {
                                                     LevelCheckResult rslt = c.GetLevelIntersection(box);
-                                                    if (rslt == LevelCheckResult.MostlyInside)
+                                                    if (rslt == LevelCheckResult.FullyInside)
+                                                    {
+                                                        ammount++;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                            else
+                                            {
+                                                foreach (LevelChecker c in LevelChecker.GetOtherLevelById(level.Id))
+                                                {
+                                                    LevelCheckResult rslt = c.GetLevelIntersection(box);
+                                                    if (rslt == LevelCheckResult.FullyInside)
                                                     {
                                                         ammount++;
                                                         break;
@@ -121,30 +123,53 @@ namespace BatchModelCheck.Tools
                                 }
                                 else
                                 {
-                                    LevelCheckResult result = checker.GetFloorLevelIntersection(box);
-                                    if (result != LevelCheckResult.MostlyInside && result != LevelCheckResult.FullyInside)
+                                    if (element.GetType() == typeof(Floor))
                                     {
-                                        bool skip = false;
-                                        foreach (LevelChecker c in LevelChecker.GetOtherLevelById(level.Id))
-                                        {
-                                            LevelCheckResult rslt = c.GetFloorLevelIntersection(box);
-                                            if (rslt == LevelCheckResult.FullyInside)
-                                            {
-                                                ammount++;
-                                                skip = true;
-                                                break;
-                                            }
-                                        }
-                                        if (!skip)
+                                        LevelCheckResult result = checker.GetFloorLevelIntersection(box);
+                                        if (result == LevelCheckResult.NotInside)
                                         {
                                             foreach (LevelChecker c in LevelChecker.GetOtherLevelById(level.Id))
                                             {
                                                 LevelCheckResult rslt = c.GetFloorLevelIntersection(box);
-                                                if (rslt == LevelCheckResult.MostlyInside)
+                                                if (rslt == LevelCheckResult.FullyInside)
                                                 {
                                                     ammount++;
-                                                    skip = true;
                                                     break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    if (element.GetType() == typeof(Wall))
+                                    {
+                                        LevelCheckResult result = checker.GetFloorLevelIntersection(box);
+                                        if (result == LevelCheckResult.NotInside)
+                                        {
+                                            result = checker.GetLevelIntersection(box);
+                                            if (result != LevelCheckResult.FullyInside && result != LevelCheckResult.MostlyInside)
+                                            {
+                                                if (result == LevelCheckResult.TheLeastInside)
+                                                {
+                                                    foreach (LevelChecker c in LevelChecker.GetOtherLevelById(level.Id))
+                                                    {
+                                                        LevelCheckResult rslt = c.GetLevelIntersection(box);
+                                                        if (rslt == LevelCheckResult.FullyInside)
+                                                        {
+                                                            ammount++;
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    foreach (LevelChecker c in LevelChecker.GetOtherLevelById(level.Id))
+                                                    {
+                                                        LevelCheckResult rslt = c.GetLevelIntersection(box);
+                                                        if (rslt == LevelCheckResult.FullyInside)
+                                                        {
+                                                            ammount++;
+                                                            break;
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
@@ -156,8 +181,8 @@ namespace BatchModelCheck.Tools
                     }
                 }
             }
-            catch (Exception e)
-            { PrintError(e); }
+            catch (Exception)
+            { }
             return ammount;
         }
         public static int CheckMirrored(Document doc)
@@ -324,7 +349,7 @@ namespace BatchModelCheck.Tools
                                 link = doc.GetElement(i) as RevitLinkInstance;
                                 names.Add(link.Name);
                             }
-                            if (link != null)
+                            if (link == null)
                             {
                                 ammount++;
                             }

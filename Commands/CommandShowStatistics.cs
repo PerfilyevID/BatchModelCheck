@@ -50,7 +50,7 @@ namespace BatchModelCheck.Commands
                     Print("Расчеты не найдены!", KPLN_Loader.Preferences.MessageType.Error);
                     return Result.Cancelled;
                 }
-                Picker pp = new Picker(projects);
+                Picker pp = new Picker(projects.OrderBy(x => x.Name).ToList());
                 pp.ShowDialog();
                 if (Picker.PickedProject != null)
                 {
@@ -58,6 +58,7 @@ namespace BatchModelCheck.Commands
                     List<KPLNDataBase.Collections.DbDocument> documents = new List<KPLNDataBase.Collections.DbDocument>();
                     foreach (KPLNDataBase.Collections.DbDocument doc in KPLNDataBase.DbControll.Documents)
                     {
+                        if (doc.Department == null) { continue; }
                         if (File.Exists(string.Format(@"Z:\Отдел BIM\03_Скрипты\09_Модули_KPLN_Loader\DB\BatchModelCheck\doc_id_{0}.sqlite", doc.Id.ToString())))
                         {
                             if (doc.Project.Id == pickedProject.Id)
@@ -65,9 +66,8 @@ namespace BatchModelCheck.Commands
                                 documents.Add(doc);
                             }
                         }
-
                     }
-                    Picker dp = new Picker(documents);
+                    Picker dp = new Picker(documents.OrderBy(x => x.Department.Name).ThenBy(x => x.Name).ToList());
                     dp.ShowDialog();
                     if (Picker.PickedDocument != null)
                     {

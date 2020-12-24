@@ -72,7 +72,7 @@ namespace BatchModelCheck.Commands
                     if (Picker.PickedDocument != null)
                     {
                         KPLNDataBase.Collections.DbDocument pickedDocument = Picker.PickedDocument;
-                        OutputDB form = new OutputDB(string.Format("{0}: {1}", pickedProject.Name, pickedDocument.Name), DbController.GetRows(pickedDocument.Id.ToString()));
+                        OutputDB form = new OutputDB(string.Format("{0}: {1}", pickedProject.Name, pickedDocument.Name), DbController.GetRows(pickedDocument.Id.ToString()), documents.OrderBy(x => x.Department.Name).ThenBy(x => x.Name).ToList());
                         form.Show();
                         return Result.Succeeded;
                     }

@@ -33,7 +33,7 @@ namespace BatchModelCheck.DB
                         db.Close();
                     }
                     catch (Exception)
-                    { 
+                    {
                         db.Close();
                     }
                 });

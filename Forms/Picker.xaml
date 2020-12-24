@@ -12,12 +12,18 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
         <TextBlock Name="tbHeader" Text="" Grid.Row="0" HorizontalAlignment="Center" FontSize="16" FontWeight="Bold"/>
-        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Hidden">
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
             <StackPanel Orientation="Vertical">
                 <ItemsControl x:Name="Projects">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Button HorizontalContentAlignment="Left" Content="{Binding Name}" Background="White" Click="OnBtnClick" Margin="3" BorderBrush="#FFE7F0FF"/>
+                            <Button HorizontalContentAlignment="Left" Background="White" Click="OnBtnClick" Margin="3" BorderBrush="{x:Null}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding Department.Code}" FontWeight="Bold" TextDecorations="{x:Null}"/>
+                                    <TextBlock Text=" - "/>
+                                    <TextBlock Text="{Binding Name}" TextDecorations="Underline"/>
+                                </StackPanel>
+                            </Button>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>

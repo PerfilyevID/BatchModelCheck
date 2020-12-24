@@ -127,7 +127,7 @@ namespace BatchModelCheck.Tools
         {
             Doc = doc;
             Level = level;
-            Min = level.Elevation;
+            Min = level.ProjectElevation;
             ElementId upperLevelId = level.get_Parameter(BuiltInParameter.LEVEL_UP_TO_LEVEL).AsElementId();
             if (upperLevelId == null || upperLevelId.IntegerValue == -1)
             {
@@ -137,18 +137,18 @@ namespace BatchModelCheck.Tools
                 {
                     part = name.Split('_')[0];
                 }
-                UpperLevel = GetNearestUpperLevel(level.Elevation, doc, part);
+                UpperLevel = GetNearestUpperLevel(level.ProjectElevation, doc, part);
                 if (code != null)
                 {
-                    UpperLevel = GetNearestUpperLevel(level.Elevation, doc, part);
+                    UpperLevel = GetNearestUpperLevel(level.ProjectElevation, doc, part);
                 }
                 else
                 {
-                    UpperLevel = GetNearestUpperLevel(level.Elevation, doc, null);
+                    UpperLevel = GetNearestUpperLevel(level.ProjectElevation, doc, null);
                 }
                 if (UpperLevel != null)
                 {
-                    Max = UpperLevel.Elevation;
+                    Max = UpperLevel.ProjectElevation;
                 }
                 else
                 {
@@ -158,7 +158,7 @@ namespace BatchModelCheck.Tools
             else
             {
                 UpperLevel = doc.GetElement(upperLevelId) as Level;
-                Max = UpperLevel.Elevation;
+                Max = UpperLevel.ProjectElevation;
             }
         }
         private List<Level> GetLevelsByP(double elevation, Document doc, double min, double max, string part = null)
@@ -174,7 +174,7 @@ namespace BatchModelCheck.Tools
                         continue;
                     }
                 }
-                if (level.Elevation > elevation && level.Elevation - elevation <= max / 304.8 && level.Elevation - elevation >= min / 304.8)
+                if (level.ProjectElevation > elevation && level.ProjectElevation - elevation <= max / 304.8 && level.ProjectElevation - elevation >= min / 304.8)
                 {
                     levels.Add(level);
                 }
@@ -183,10 +183,29 @@ namespace BatchModelCheck.Tools
         }
         public Level GetNearestUpperLevel(double elevation, Document doc, string part = null)
         {
-            List<Level> levels = GetLevelsByP(elevation, doc, 2000, 4000, part);
+            List<Level> levels = GetLevelsByP(elevation, doc, 2000, 5000, part);
             if (levels.Count == 0)
             {
                 levels = GetLevelsByP(elevation, doc, 1000, 2000, part);
+            }
+            if (levels.Count == 0)
+            {
+                levels = GetLevelsByP(elevation, doc, 5000, 100000, part);
+            }
+            if (part != null)
+            {
+                if (levels.Count == 0)
+                {
+                    levels = GetLevelsByP(elevation, doc, 2000, 5000, null);
+                }
+                if (levels.Count == 0)
+                {
+                    levels = GetLevelsByP(elevation, doc, 1000, 2000, null);
+                }
+                if (levels.Count == 0)
+                {
+                    levels = GetLevelsByP(elevation, doc, 5000, 100000, null);
+                }
             }
             if (levels.Count == 0)
             {
@@ -196,7 +215,7 @@ namespace BatchModelCheck.Tools
             {
                 return levels[0];
             }
-            List<Level> sortedLevels = levels.OrderBy(o => o.Elevation).ToList();
+            List<Level> sortedLevels = levels.OrderBy(o => o.ProjectElevation).ToList();
             return sortedLevels[0];
         }
     }

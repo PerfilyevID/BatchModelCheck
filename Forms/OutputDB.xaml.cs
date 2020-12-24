@@ -64,8 +64,11 @@ namespace BatchModelCheck.Forms
                 }
             }
         }
-        public OutputDB(string projectName, List<DbRowData> data)
+        public static List<KPLNDataBase.Collections.DbDocument> _Documents { get; set; } = null;
+        public OutputDB(string projectName, List<DbRowData> data, List<KPLNDataBase.Collections.DbDocument> documents)
         {
+            Title = string.Format("KPLN: {0}", projectName);
+            _Documents = documents;
 #if Revit2020
             Owner = ModuleData.RevitWindow;
 #endif
@@ -93,6 +96,22 @@ namespace BatchModelCheck.Forms
             XFormatter = val => new DateTime((long)val).ToString("dd MMM");
             YFormatter = val => Math.Round(val, 0).ToString();
             DataContext = this;
+            Closed += OnClosed;
+        }
+        private void OnClosed(object sender, EventArgs args)
+        {
+            if (_Documents != null)
+            {
+                Picker dp = new Picker(_Documents);
+                dp.ShowDialog();
+                if (Picker.PickedDocument != null)
+                {
+                    ProjectName = string.Format("{0}: {1}", Picker.PickedDocument.Project.Name, Picker.PickedDocument.Name);
+                    KPLNDataBase.Collections.DbDocument pickedDocument = Picker.PickedDocument;
+                    OutputDB form = new OutputDB(ProjectName, DbController.GetRows(pickedDocument.Id.ToString()), _Documents);
+                    form.Show();
+                }
+            }
         }
         private void OnChecked(object sender, RoutedEventArgs e)
         {

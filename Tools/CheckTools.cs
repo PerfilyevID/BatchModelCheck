@@ -294,6 +294,36 @@ namespace BatchModelCheck.Tools
             { PrintError(e); }
             return ammount;
         }
+        public static List<List<Element>> GetElementsCollection(Document doc)
+        {
+            List<Element> families = new List<Element>();
+            List<Element> symbols = new List<Element>();
+            foreach (Family family in new FilteredElementCollector(doc).OfClass(typeof(Family)).ToElements())
+            {
+                if (family.IsEditable && family.IsUserCreated)
+                {
+                    families.Add(family);
+                    foreach (ElementId symbolId in family.GetFamilySymbolIds())
+                    {
+                        FamilySymbol symbol = doc.GetElement(symbolId) as FamilySymbol;
+                        symbols.Add(symbol);
+                    }
+                }
+            }
+            return new List<List<Element>> { families, symbols };
+        }
+
+        public static bool AllWorksetsAreOpened(Document doc)
+        {
+            foreach (Workset w in new FilteredWorksetCollector(doc).OfKind(WorksetKind.UserWorkset))
+            {
+                if (!w.IsOpen)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
         public static int CheckLinkWorkSets(Document doc)
         {
             int ammount = 0;
@@ -329,6 +359,63 @@ namespace BatchModelCheck.Tools
             { PrintError(e); }
             return ammount;
         }
+        public static int CheckElementsWorksets(Document doc)
+        {
+            int ammount = 0;
+            try
+            {
+                HashSet<string> links = new HashSet<string>();
+                if (doc.IsWorkshared)
+                {
+                    List<Workset> worksets = new List<Workset>();
+                    foreach (Workset w in new FilteredWorksetCollector(doc).OfKind(WorksetKind.UserWorkset))
+                    {
+                        if (!w.IsOpen)
+                        {
+                            ammount++;
+                            return ammount;
+                        }
+                        worksets.Add(w);
+                    }
+                    foreach (Element element in new FilteredElementCollector(doc).WhereElementIsNotElementType().ToElements())
+                    {
+                        if (element.Category == null) { continue; }
+                        try
+                        {
+                            if (element.Category.CategoryType != CategoryType.Model)
+                            {
+                                continue;
+                            }
+                            if (element.GetType() == typeof(RevitLinkInstance) || element.GetType() == typeof(ImportInstance))
+                            {
+                                continue;
+                            }
+                            foreach (Workset w in worksets)
+                            {
+                                if (element.WorksetId.IntegerValue == w.Id.IntegerValue)
+                                {
+                                    if (w.Name.StartsWith("#"))
+                                    {
+                                        ammount++;
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception)
+                        { }
+                    }
+                }
+                else
+                {
+                    ammount++;
+                    return ammount;
+                }
+            }
+            catch (Exception)
+            { }
+            return ammount;
+        }
+
         public static int CheckMonitorGrids(Document doc)
         {
             int ammount = 0;
@@ -365,7 +452,6 @@ namespace BatchModelCheck.Tools
                 if (ids.Count > 1)
                 {
                     ammount++;
-
                 }
             }
             catch (Exception e)

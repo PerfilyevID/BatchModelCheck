@@ -5,7 +5,6 @@ using revit.Autodesk.Revit.UI.Events;
 using KPLN_Loader.Common;
 using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
 using System.Linq;
 using System.Reflection;
 using System.Windows;
@@ -24,6 +23,7 @@ using BatchModelCheck.DB;
 using BatchModelCheck.Tools;
 using System.Text;
 using System.Runtime.InteropServices;
+using System.Data.SQLite;
 
 namespace BatchModelCheck
 {
@@ -45,29 +45,45 @@ namespace BatchModelCheck
             {
                 MainWindowHandle = WindowHandleSearch.MainWindowHandle.Handle;
             }
-            catch (Exception e)
-            {
-                PrintError(e);
-            }
+            catch (Exception) { }
 #endif
             string assembly = Assembly.GetExecutingAssembly().Location.Split(new string[] { "\\" }, StringSplitOptions.None).Last().Split('.').First();
             string ribbonName = "Проверки";
             RibbonPanel panel = application.CreateRibbonPanel(tabName, ribbonName);
-            AddPushButtonData("Открыть менеджер проверок", "Batch\nChecker", "Запуск проверки выбранных документов на ошибки.", string.Format("{0}.{1}", assembly, "Commands.CommandOpenDialog"), panel, new Source.Source(Common.Collections.Icon.OpenManager), true);
-            AddPushButtonData("Открыть окно статистики", "Статистика", "Отображение статистики по документам, которые были проверены на ошибки.", string.Format("{0}.{1}", assembly, "Commands.CommandShowStatistics"), panel, new Source.Source(Common.Collections.Icon.Statistics), true);
+            if (KPLN_Loader.Preferences.User.Department.Id == 4)
+            {
+                AddPushButtonData("Открыть менеджер проверок", "Серийная\nпроверка", "Запуск проверки выбранных документов на ошибки.", string.Format("{0}.{1}", assembly, "Commands.CommandOpenDialog"), panel, new Source.Source(Common.Collections.Icon.OpenManager), true);
+            }
+            AddPushButtonData("Открыть окно статистики", "Окно\ncтатистики", "Отображение статистики по документам, которые были проверены на ошибки.", string.Format("{0}.{1}", assembly, "Commands.CommandShowStatistics"), panel, new Source.Source(Common.Collections.Icon.Statistics), true);
+            panel.AddSlideOut();
+            if (KPLN_Loader.Preferences.User.Department.Id == 4)
+            {
+                AddPushButtonData("Параметры", "Параметры", "Редактирование пользовательских настроек.", string.Format("{0}.{1}", assembly, "Commands.CommandShowSettings"), panel, new Source.Source(Common.Collections.Icon.Preferences), true);
+            }
             application.DialogBoxShowing += OnDialogBoxShowing;
             application.ControlledApplication.ApplicationInitialized += OnInitialized;
             application.ControlledApplication.FailuresProcessing += OnFailureProcessing;
-            //application.ControlledApplication.DocumentOpened += OnOpened;
+            application.ControlledApplication.DocumentOpened += OnOpened;
             return Result.Succeeded;
         }
-        /*
+        private string NormalizeString(string value)
+        {
+            string result = string.Empty;
+            foreach(char c in value)
+            {
+                if (char.IsWhiteSpace(c))
+                {
+                    result += '_';
+                }
+                else
+                {
+                    result += c;
+                }
+            }
+            return result;
+        }
         private void CheckDocument(Document doc, DbDocument dbDoc)
         {
-            if (KPLN_Loader.Preferences.User.Department.Id == 4)
-            {
-                Print(string.Format("Проверка на ошибки [{0}: {1}]...", dbDoc.Project.Name, dbDoc.Name), KPLN_Loader.Preferences.MessageType.Regular);
-            }
             try
             {
                 DbRowData rowData = new DbRowData();
@@ -78,34 +94,39 @@ namespace BatchModelCheck
                 rowData.Errors.Add(new DbError("Дубликаты имен", CheckTools.CheckNames(doc)));
                 rowData.Errors.Add(new DbError("Ошибки подгруженных связей", CheckTools.CheckSharedLocations(doc) + CheckTools.CheckLinkWorkSets(doc)));
                 rowData.Errors.Add(new DbError("Предупреждения Revit", CheckTools.CheckErrors(doc)));
+                rowData.Errors.Add(new DbError("Размер файла", CheckTools.CheckFileSize(dbDoc.Path)));
                 DbController.WriteValue(dbDoc.Id.ToString(), rowData.ToString());
-                if (KPLN_Loader.Preferences.User.Department.Id == 4)
-                {
-                    Print(string.Format("Проверка на ошибки [{0}: {1}] прошла успешно!", dbDoc.Project.Name, dbDoc.Name), KPLN_Loader.Preferences.MessageType.Success);
-                }
+                //BotActions.SendRegularMessage(string.Format("👌 @{0}_{1} завершил проверку документа #{3} #{2}", NormalizeString(KPLN_Loader.Preferences.User.Family), NormalizeString(KPLN_Loader.Preferences.User.Name), NormalizeString(dbDoc.Project.Name), NormalizeString(dbDoc.Name)), Bot.Target.Process);
             }
-            catch (Exception)
-            { }
+            catch (Exception) { }
         }
         public void OnOpened(object sender, DocumentOpenedEventArgs args)
         {
-            Document doc = args.Document;
-            if (doc.IsWorkshared && !doc.IsDetached)
+            try
             {
-                string path = ModelPathUtils.ConvertModelPathToUserVisiblePath(doc.GetWorksharingCentralModelPath());
-                FileInfo centralPath = new FileInfo(path);
-                foreach (DbDocument dbDoc in KPLNDataBase.DbControll.Documents)
+                Document doc = args.Document;
+                if (!CheckTools.AllWorksetsAreOpened(doc)) { return; }
+                if (doc.IsWorkshared && !doc.IsDetached)
                 {
-                    FileInfo metaCentralPath = new FileInfo(dbDoc.Path);
-                    if (dbDoc.Code == "NONE") { return; }
-                    if (centralPath.FullName == metaCentralPath.FullName)
+                    string path = ModelPathUtils.ConvertModelPathToUserVisiblePath(doc.GetWorksharingCentralModelPath());
+                    FileInfo centralPath = new FileInfo(path);
+                    foreach (DbDocument dbDoc in KPLNDataBase.DbControll.Documents)
                     {
-                        if (File.Exists(string.Format(@"Z:\Отдел BIM\03_Скрипты\09_Модули_KPLN_Loader\DB\BatchModelCheck\doc_id_{0}.sqlite", dbDoc.Id.ToString())))
+                        FileInfo metaCentralPath = new FileInfo(dbDoc.Path);
+                        if (dbDoc.Code == "NONE") { continue; }
+                        if (centralPath.FullName == metaCentralPath.FullName)
                         {
-                            List<DbRowData> rows = DbController.GetRows(dbDoc.Id.ToString());
-                            if (rows.Count != 0)
+                            if (File.Exists(string.Format(@"Z:\Отдел BIM\03_Скрипты\09_Модули_KPLN_Loader\DB\BatchModelCheck\doc_id_{0}.sqlite", dbDoc.Id.ToString())))
                             {
-                                if (rows.Last().DateTime.Day != DateTime.Now.Day || rows.Last().DateTime.Month != DateTime.Now.Month || rows.Last().DateTime.Year != DateTime.Now.Year)
+                                List<DbRowData> rows = DbController.GetRows(dbDoc.Id.ToString());
+                                if (rows.Count != 0)
+                                {
+                                    if ((DateTime.Now.Day - rows.Last().DateTime.Day > 7 && rows.Last().DateTime.Day != DateTime.Now.Day) || rows.Last().DateTime.Month != DateTime.Now.Month || rows.Last().DateTime.Year != DateTime.Now.Year)
+                                    {
+                                        CheckDocument(doc, dbDoc);
+                                    }
+                                }
+                                else
                                 {
                                     CheckDocument(doc, dbDoc);
                                 }
@@ -115,18 +136,14 @@ namespace BatchModelCheck
                                 CheckDocument(doc, dbDoc);
                             }
                         }
-                        else
-                        {
-                            CheckDocument(doc, dbDoc);
-                        }
                     }
                 }
             }
+            catch (Exception) { }
         }
-        */
         public void OnFailureProcessing(object sender, FailuresProcessingEventArgs args)
         {
-            if (!ModuleData.AutoConfirmEnabled)
+            if (!ModuleData.AutoConfirmEnabled || !ModuleData.up_close_dialogs)
             {
                 return;
             }
@@ -158,9 +175,10 @@ namespace BatchModelCheck
         {
             KPLNDataBase.DbControll.Update();
         }
+
         public void OnDialogBoxShowing(object sender, DialogBoxShowingEventArgs args)
         {
-            if (!ModuleData.AutoConfirmEnabled) 
+            if (!ModuleData.AutoConfirmEnabled || !ModuleData.up_close_dialogs) 
             {
                 return; 
             }

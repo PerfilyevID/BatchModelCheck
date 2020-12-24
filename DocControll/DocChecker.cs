@@ -16,7 +16,6 @@ using System.Threading;
 using revit::Autodesk.Revit.DB.Events;
 using revit::Autodesk.Revit.UI.Events;
 using System.Drawing;
-using System.Data.SQLite;
 using System.Drawing.Imaging;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -84,14 +83,29 @@ namespace BatchModelCheck.DocControll
         }
         private List<DbDocument> Documents { get; }
         private static System.Threading.Timer _Timer { get; set; }
+        private static string NormalizeString(string value)
+        {
+            string result = string.Empty;
+            foreach (char c in value)
+            {
+                if (char.IsWhiteSpace(c)) { result += "_"; continue; }
+                if (char.IsPunctuation(c)) { result += "_"; continue; }
+                if (char.IsLetter(c) || char.IsDigit(c)) { result += c; continue; }
+                continue;
+            }
+            return result;
+        }
         public Result Execute(UIApplication app)
         {
-            Thread thread = new Thread(() =>
+            if (ModuleData.up_send_enter)
             {
-                var autoEvent = new AutoResetEvent(true);
-                _Timer = new System.Threading.Timer(UiInput.KeyEnter, autoEvent, 20000, 20000);
-            });
-            thread.Start();
+                Thread thread = new Thread(() =>
+                {
+                    var autoEvent = new AutoResetEvent(true);
+                    _Timer = new System.Threading.Timer(UiInput.KeyEnter, autoEvent, 20000, 20000);
+                });
+                thread.Start();
+            }
             try
             {
                 string assemblyPath = new FileInfo(Assembly.GetExecutingAssembly().Location).DirectoryName;
@@ -102,8 +116,12 @@ namespace BatchModelCheck.DocControll
                     Print("Создание [placeholder] документа...", KPLN_Loader.Preferences.MessageType.Regular);
                     app.Application.NewProjectDocument(UnitSystem.Metric);
                 }
+                int max = Documents.Count;
+                int step = 0;
                 foreach (DbDocument doc in Documents)
                 {
+                    step++;
+                    string step_info = string.Format("[{0}/{1}]", step.ToString(), max.ToString());
                     try
                     {
                         Print(string.Format("[{0}] Открытие {1}...", DateTime.Now.ToString("T"), doc.Path), KPLN_Loader.Preferences.MessageType.Header);
@@ -123,6 +141,7 @@ namespace BatchModelCheck.DocControll
                             rowData.Errors.Add(new DbError("Ошибки подгруженных связей", CheckTools.CheckSharedLocations(docu) + CheckTools.CheckLinkWorkSets(docu)));
                             rowData.Errors.Add(new DbError("Предупреждения Revit", CheckTools.CheckErrors(docu)));
                             rowData.Errors.Add(new DbError("Размер файла", CheckTools.CheckFileSize(doc.Path)));
+                            rowData.Errors.Add(new DbError("Элементы в наборах подгруженных связей", CheckTools.CheckElementsWorksets(docu)));
                             DbController.WriteValue(doc.Id.ToString(), rowData.ToString());
                             Print(string.Format("[{0}] Закрытие документа...", DateTime.Now.ToString("T")), KPLN_Loader.Preferences.MessageType.Header);
                         }

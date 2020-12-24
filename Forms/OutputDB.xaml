@@ -6,7 +6,7 @@
              xmlns:local="clr-namespace:BatchModelCheck.Forms" xmlns:lvc="clr-namespace:LiveCharts.Wpf;assembly=LiveCharts.Wpf"
         mc:Ignorable="d" 
              Height="600" Width="800"
-             FontFamily="Monaco, Consolas, 'Andale Mono', 'DejaVu Sans Mono', monospace" Title="Отчет" WindowStartupLocation="CenterOwner" WindowStyle="ToolWindow">
+             FontFamily="Monaco, Consolas, 'Andale Mono', 'DejaVu Sans Mono', monospace" Title="KPLN: Отчет" WindowStartupLocation="CenterOwner" WindowStyle="ToolWindow">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"></RowDefinition>

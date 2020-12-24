@@ -18,6 +18,9 @@ namespace BatchModelCheck.Source
                 case Icon.Statistics:
                     Value = Path.Combine(AssemblyPath, @"Source\icon_browser.png");
                     break;
+                case Icon.Preferences:
+                    Value = Path.Combine(AssemblyPath, @"Source\icon_setup.png");
+                    break;
             }
         }
     }

@@ -23,7 +23,8 @@ namespace BatchModelCheck.Forms
             PickedDocument = null;
             InitializeComponent();
             this.Projects.ItemsSource = projects;
-            tbHeader.Text = "Выберите проект:";
+            tbHeader.Text = "Проекты:";
+            Title = "KPLN: Выбрать проект";
         }
         public Picker(List<DbDocument> documents)
         {
@@ -38,7 +39,8 @@ namespace BatchModelCheck.Forms
             PickedDocument = null;
             InitializeComponent();
             this.Projects.ItemsSource = documents;
-            tbHeader.Text = "Выберите документ:";
+            tbHeader.Text = "Документы:";
+            Title = "KPLN: Выбрать документ";
         }
         private void OnBtnClick(object sender, RoutedEventArgs e)
         {
